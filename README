@@ -7,7 +7,15 @@ Once those are found, they are immediately put into iptables for blocking.
 
 You can see how this is a bit dangerous.
 
-I've added some "good IP" ability so that some particular IPs are never blocked.
+I've added some "good IP" (aka whitelist) ability so that some particular IPs are never blocked.
+
+You'll need to change the first line to your local perl and you'll have to use CPAN to load in a few libraries.
+Do "which perl" to find your local perl path.
+The CPAN part kind of sucks.  
+
+Just run "ipBlocker --help" to get list of all the switches and things that can be done.
+The biggest issue is building out a sub for each kind of log and the regular expressions to look for per line.
+This whole process is pretty much a brute force method but it works for repetive attacks. 
 
 Not everything is built out the way I'd like and as I've learned more and more about Perl, some of this should be in libraries. There should also be quite a bit more threading, too.  
 
