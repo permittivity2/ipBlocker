@@ -15,6 +15,8 @@
 #				or may want a pause of a few seconds between each run.
 # Version:	13.21 -- Beta
 #			Added sendmail 
+# Version:	13.03.17 -- Beta
+#			Added tabbing for verbose output
 #
 # Future improvement suggestions:
 #	1)	Use a config file for the various file locations, directories, and
