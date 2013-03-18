@@ -38,6 +38,7 @@ my $hour;	my $year;		my $isdst;
 
 my $verbose=0;
 my $help;
+my $tabCount=0;
 my $STOP;
 my $BASEFILENAME=fileparse($0,".pl");
 my $AUTHLOG="/var/log/auth.log";
@@ -81,6 +82,7 @@ my %BADIPS;
 GetOptions('verbose+' => \$verbose, 'help' => \$help, 'stop' => \$STOP,
 	'logfile=s' => \$LOGFILE, 'runningdir=s' =>\$RUNNINGDIR, 'authlog=s' => \$AUTHLOG, 'querylog=s' => \$QUERYLOG, 'usernames=s' => \$USERNAMES, 
 	'allowedips=s' => \$ALLOWEDIPS, 'blockedips=s' => \$BLOCKEDIPS, 'nice:19' => \$NICE, 'cycles:0' => \$CYCLES, 'maillog=s' => \$MAILLOG, 
+	'allowedfqdns=s' => \$ALLOWEDFQDNS, 'blockedfqdns=s' => \$BLOCKEDFQDNS, 
 	'authlogbadregexps=s' => \$AUTHLOGBADREGEXPs, 'querylogbadregexps=s' => \$QUERYLOGBADREGEXPs, 'sleep:0' => \$SLEEP  );
 
 # Re-nice this to $NICE.  This may not be necessary on multi-core/cpu systems 
@@ -112,7 +114,7 @@ sub main {
 	}
 	else {
 		while ( $CYCLES > 0 ) {
-			warn "Epoch of this cycle: ".time."\n" if ($verbose > 0);
+			warn "\tEpoch of this cycle: ".time."\n" if ($verbose > 0);
 			stopRunning();
 			loadAndAdd();
 			$CYCLES--;
@@ -132,7 +134,7 @@ sub stopRunning {
 		my @stopFile=<FILE>;
 		close FILE;
 		if ( $stopFile[0]  =~ m/stop/i ){
-			warn "Caught a stop!!! \n" if ($verbose>0);
+			warn "\tCaught a stop!!! \n" if ($verbose>0);
 			$LOCKFILE->remove;
 			unlink "$LOCKDIR/$LOCKFILENAME.stop";
 			exit 0;
@@ -156,7 +158,7 @@ sub locked {
 			print FILE "STOP\n";
 			close FILE;
 		} else {
-	  		warn "Program is already running with PID: $pid";
+	  		warn "\tProgram is already running with PID: $pid";
 		}
 		exit;
 	} 
@@ -234,10 +236,10 @@ sub loadAUTHLOG {
 	open FILE, $AUTHLOG or die "Dying in loadAUTHLOG.  Couldn't load $AUTHLOG.  Error: $!";
 	@AUTHLOGarray=<FILE>;
 	close FILE;
-	warn "$AUTHLOG loaded \n" if ($verbose > 1);
-	warn "Lines in $AUTHLOG: ".scalar(@AUTHLOGarray)."\n" if ($verbose>1);
+	warn "\t$AUTHLOG loaded \n" if ($verbose > 1);
+	warn "\tLines in $AUTHLOG: ".scalar(@AUTHLOGarray)."\n" if ($verbose>1);
 	if ($verbose > 3) {
-		warn "$AUTHLOG entries: \n";
+		warn "\t\t$AUTHLOG entries: \n";
 		foreach (@AUTHLOGarray) {
 			warn $_;
 		}
@@ -250,12 +252,12 @@ sub loadQUERYLOG {
 	open FILE, $QUERYLOG or die "Dying in loadQUERYLOG.  Couldn't load $QUERYLOG.  Error: $!";
 	@QUERYLOGarray=<FILE>;
 	close FILE;
-	warn "$QUERYLOG loaded \n" if ($verbose > 1);
-	warn "Lines in $QUERYLOG: ".scalar(@QUERYLOGarray)."\n" if ($verbose>1);
+	warn "\t$QUERYLOG loaded \n" if ($verbose > 1);
+	warn "\tLines in $QUERYLOG: ".scalar(@QUERYLOGarray)."\n" if ($verbose>1);
 	if ($verbose > 3) {
-		warn "$QUERYLOG entries: \n";
+		warn "\t\t$QUERYLOG entries: \n";
 		foreach (@QUERYLOGarray) {
-			warn $_;
+			warn "\t\t\t$_";
 		}
 	}
 }
@@ -266,12 +268,12 @@ sub loadMAILLOG {
 	open FILE, $MAILLOG or die "Dying in loadMAILLOG.  Couldn't load $MAILLOG.  Error: $!";
 	@MAILLOGarray=<FILE>;
 	close FILE;
-	warn "$MAILLOG loaded \n" if ($verbose > 1);
-	warn "Lines in $MAILLOG: ".scalar(@MAILLOGarray)."\n" if ($verbose>1);
+	warn "\t$MAILLOG loaded \n" if ($verbose > 1);
+	warn "\tLines in $MAILLOG: ".scalar(@MAILLOGarray)."\n" if ($verbose>1);
 	if ($verbose > 3) {
-		warn "$MAILLOG entries: \n";
+		warn "\t\t$MAILLOG entries: \n";
 		foreach (@MAILLOGarray) {
-			warn $_;
+			warn "\t\t\t$_";
 		}
 	}
 }
@@ -281,9 +283,9 @@ sub addMAILLOGBADLIST {
 #Description: So far only looks for "did not issue MAIL/EXPN/VRFY/ETRN" and gets the IP from that.
 #Assumptions:
 #	Assumes @MAILLOGarry has been loaded
-	warn "BADIPS size before adding from \@MAILLOGarray : ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size before adding from \@MAILLOGarray : ".keys( %BADIPS )."\n" if ($verbose>2);
 	foreach my $REGEXP (@BLOCKEDMAILarray) {
-		warn "\$REGEXP being checked: $REGEXP \n" if ($verbose>3);
+		warn "\t\t\$REGEXP being checked: $REGEXP \n" if ($verbose>3);
 		my @LIST = grep(/$REGEXP/, @MAILLOGarray);
 		foreach (@LIST) {
 			chomp;
@@ -295,9 +297,9 @@ sub addMAILLOGBADLIST {
 	}
 	warn "BADIPS size after adding from \@MAILLOGarray: ".keys( %BADIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%BADIPS entries: \n";
+		warn "\t\t\%BADIPS entries: \n";
 		foreach my $key (sort keys %BADIPS) {
-			warn "$key: ".$BADIPS{$key}." \n";
+			warn "\t\t\t$key: ".$BADIPS{$key}." \n";
 		}
 	}
 }
@@ -308,9 +310,9 @@ sub addAUTHLOGGOODLIST {
 # Assumptions: 
 #		Assumes @AUTHLOGarray has already been loaded.
 #		Assumes @USERNAMESarray has been setup
-	warn "GOODIPS size before adding from \@AUTHLOGarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
+	warn "\tGOODIPS size before adding from \@AUTHLOGarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
 	foreach my $REGEXP (@USERNAMESarray) {
-		warn "\$REGEXP being checked: $REGEXP \n" if ($verbose>3);
+		warn "\t\t\$REGEXP being checked: $REGEXP \n" if ($verbose>3);
 		my @LIST = grep(/$REGEXP/, @AUTHLOGarray);
 		foreach (@LIST) {
 			chomp;
@@ -322,11 +324,11 @@ sub addAUTHLOGGOODLIST {
 			$GOODIPS{$_} = "$AUTHLOG -- $REGEXP" if ( $_ =~ m/^(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)$/ );
 		}
 	}
-	warn "GOODIPS size after adding from \@AUTHLOGarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
+	warn "\tGOODIPS size after adding from \@AUTHLOGarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%GOODIPS entries: \n";
+		warn "\t\t\%GOODIPS entries: \n";
 		foreach my $key (sort keys %GOODIPS) {
-			warn "$key: ".$GOODIPS{$key}." \n";
+			warn "\t\t\t$key: ".$GOODIPS{$key}." \n";
 		}
 	}
 }
@@ -339,9 +341,9 @@ sub addAUTHLOGBADLIST {
 #		Assumes @AUTHLOGarray has already been loaded.
 #		Assumes $AUTHLOGBADREGEXPsarray has been setup
 
-	warn "BADIPS size before adding from \@AUTHLOGarray: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size before adding from \@AUTHLOGarray: ".keys( %BADIPS )."\n" if ($verbose>2);
 	foreach my $REGEXP (@AUTHLOGBADREGEXPsarray) {
-		warn "\$REGEXP being checked: $REGEXP \n" if ($verbose>3);
+		warn "\t\t\$REGEXP being checked: $REGEXP \n" if ($verbose>3);
 		my @LIST = grep(/$REGEXP/, @AUTHLOGarray);
 		foreach (@LIST) {
 			chomp;
@@ -355,11 +357,11 @@ sub addAUTHLOGBADLIST {
 			}
 		}
 	}
-	warn "BADIPS size after adding from \@AUTHLOGarray: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size after adding from \@AUTHLOGarray: ".keys( %BADIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%BADIPS entries: \n";
+		warn "\t\t\%BADIPS entries: \n";
 		foreach my $key (sort keys %BADIPS) {
-			warn "$key: ".$BADIPS{$key}." \n";
+			warn "\t\t\t$key: ".$BADIPS{$key}." \n";
 		}
 	}
 }
@@ -372,9 +374,9 @@ sub addQUERYLOGBADLIST {
 #		Assumes @QUERYLOGarray has already been loaded.
 #		Assumes $QUERYLOGBADREGEXPsarray has been setup
 
-	warn "BADIPS size before adding from \@QUERYLOGarray: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size before adding from \@QUERYLOGarray: ".keys( %BADIPS )."\n" if ($verbose>2);
 	foreach my $REGEXP (@QUERYLOGBADREGEXPsarray) {
-		warn "\$REGEXP being checked: $REGEXP \n" if ($verbose>3);
+		warn "\t\t\$REGEXP being checked: $REGEXP \n" if ($verbose>3);
 		my @LIST = grep(/$REGEXP/, @QUERYLOGarray);
 		foreach (@LIST) {
 			chomp;
@@ -386,11 +388,11 @@ sub addQUERYLOGBADLIST {
 			$BADIPS{$_} = "$QUERYLOG -- $REGEXP" if ( $_ =~ m/^(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)$/ );
 		}
 	}
-	warn "BADIPS size after adding from \@QUERYLOGarray: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size after adding from \@QUERYLOGarray: ".keys( %BADIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%BADIPS entries: \n";
+		warn "\t\t\%BADIPS entries: \n";
 		foreach my $key (sort keys %BADIPS) {
-			warn "$key: ".$BADIPS{$key}." \n";
+			warn "\t\t\t$key: ".$BADIPS{$key}." \n";
 		}
 	}
 }
@@ -401,17 +403,17 @@ sub addBLOCKEDIPSBADLIST {
 # Assumptions: 
 #		Assumes @BLOCKEDIPSarray has already been loaded.
 
-	warn "BADIPS size before adding from \@BLOCKEDIPSarray: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size before adding from \@BLOCKEDIPSarray: ".keys( %BADIPS )."\n" if ($verbose>2);
 	foreach (@BLOCKEDIPSarray) {
 		s/!^(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)$//;
-		warn "$_ being added. \n" if ($verbose>3);
+		warn "\t\t$_ being added. \n" if ($verbose>3);
 		$BADIPS{$_} = "\@BLOCKEDIPSarray -- $_" if ( $_ =~ m/^(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)$/ );
 	}
-	warn "BADIPS size after adding from \@BLOCKEDIPSarray: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size after adding from \@BLOCKEDIPSarray: ".keys( %BADIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%BADIPS entries: \n";
+		warn "\t\t\%BADIPS entries: \n";
 		foreach my $key (sort keys %BADIPS) {
-			warn "$key: ".$BADIPS{$key}." \n";
+			warn "\t\t\t$key: ".$BADIPS{$key}." \n";
 		}
 	}
 }
@@ -422,17 +424,17 @@ sub addALLOWEDIPSGOODLIST {
 # Assumptions: 
 #		Assumes @ALLOWEDIPSarray has already been loaded.
 
-	warn "GOODIPS size before adding from \@ALLOWEDIPSarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
+	warn "\tGOODIPS size before adding from \@ALLOWEDIPSarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
 	foreach (@ALLOWEDIPSarray) {
 		s/!^(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)$//;
-		warn "$_ being added. \n" if ($verbose>3);
+		warn "\t\t$_ being added. \n" if ($verbose>3);
 		$GOODIPS{$_} = "\@ALLOWEDIPSarray -- $_" if ( $_ =~ m/^(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)$/ );
 	}
-	warn "GOODIPS size after adding from \@ALLOWEDIPSarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
+	warn "\tGOODIPS size after adding from \@ALLOWEDIPSarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%GOODIPS entries: \n";
+		warn "\t\t\%GOODIPS entries: \n";
 		foreach my $key (sort keys %GOODIPS) {
-			warn "$key: ".$GOODIPS{$key}." \n";
+			warn "\t\t\t$key: ".$GOODIPS{$key}." \n";
 		}
 	}
 }
@@ -446,20 +448,21 @@ sub addALLOWEDFQDNSGOODLIST {
 #Assumptions:
 #	Assumes @ALLOWEDFQDNSarray is set
 
-	warn "GOODIPS size before adding from \@ALLOWEDFQDNSarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
+	warn "\tGOODIPS size before adding from \@ALLOWEDFQDNSarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
 	foreach my $FQDN (@ALLOWEDFQDNSarray) {
-		warn "Working on $FQDN \n" if ($verbose>3);
+		warn "\t\tGetting IPS for $FQDN \n" if ($verbose>2);
 		my @netaddrs = Net::DNS::Dig->new()->for( $FQDN )->rdata();
 		foreach ( @netaddrs ) {
 			 my $IP = inet_ntoa( $_ );
+			 warn "\t\t\tAdding $IP to GOODIPS \n" if ($verbose>2);
 			 $GOODIPS{$IP} = "\@ALLOWEDFQDNS -- $FQDN";
 		}
 	}
-	warn "GOODIPS size after adding from \@ALLOWEDFQDNSarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
+	warn "\tGOODIPS size after adding from \@ALLOWEDFQDNSarray: ".keys( %GOODIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%GOODIPS entries: \n";
+		warn "\t\t\%GOODIPS entries: \n";
 		foreach my $key (sort keys %GOODIPS) {
-			warn "$key: ".$GOODIPS{$key}." \n";
+			warn "\t\t\t$key: ".$GOODIPS{$key}." \n";
 		}
 	}
 }
@@ -473,20 +476,21 @@ sub addBLOCKEDFQDNSBADLIST {
 #Assumptions:
 #	Assumes @BLOCKEDFQDNSarray is set
 
-	warn "BADIPS size before adding from \@BLOCKEDFQDNSarray: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size before adding from \@BLOCKEDFQDNSarray: ".keys( %BADIPS )."\n" if ($verbose>2);
 	foreach my $FQDN (@BLOCKEDFQDNSarray) {
-		warn "Working on $FQDN \n" if ($verbose>3);
+		warn "\t\tGetting IPS for $FQDN \n" if ($verbose>2);
 		my @netaddrs = Net::DNS::Dig->new()->for( $FQDN )->rdata();
 		foreach ( @netaddrs ) {
 			 my $IP = inet_ntoa( $_ );
+			 warn "\t\t\tAdding $IP to BADIPS \n" if ($verbose>2);
 			 $BADIPS{$IP} = "\@BLOCKEDFQDNS -- $FQDN";
 		}
 	}
-	warn "BADIPS size after adding from \@BLOCKEDFQDNSarray: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size after adding from \@BLOCKEDFQDNSarray: ".keys( %BADIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%BADIPS entries: \n";
+		warn "\t\t\%BADIPS entries: \n";
 		foreach my $key (sort keys %BADIPS) {
-			warn "$key: ".$BADIPS{$key}." \n";
+			warn "\t\t\t$key: ".$BADIPS{$key}." \n";
 		}
 	}
 }
@@ -495,15 +499,15 @@ sub deleteDUPLICATEGOODBADLIST {
 	warn "Running sub deleteDUPLICATEGOODBADLIST \n" if ($verbose>2);
 #Description: Deletes IPs from %BADLIST that are in %GOODLIST
 
-	warn "BADIPS size before deleting duplicates from \%GOODIPS: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size before deleting duplicates from \%GOODIPS: ".keys( %BADIPS )."\n" if ($verbose>2);
 	foreach my $key (keys %GOODIPS) {
 		delete $BADIPS{ $key };
 	}
-	warn "BADIPS size after deleteing duplicates from \%GOODIPS: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size after deleteing duplicates from \%GOODIPS: ".keys( %BADIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%BADIPS entries: \n";
+		warn "\t\t\%BADIPS entries: \n";
 		foreach my $key (sort keys %BADIPS) {
-			warn "$key: ".$BADIPS{$key}." \n";
+			warn "\t\t\t$key: ".$BADIPS{$key}." \n";
 		}
 	}
 }
@@ -515,7 +519,7 @@ sub deleteDUPLICATEIPTABLESBADLIST {
 #		Ablity to run /sbin/iptables
 
 	my @IPTABLES=`/sbin/iptables -n -L DROPLIST`;
-	warn "BADIPS size before deleting duplicates from \@IPTABLES: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size before deleting duplicates from \@IPTABLES: ".keys( %BADIPS )."\n" if ($verbose>2);
 	my @LIST = grep(/^DROP/,@IPTABLES);
 	foreach (@LIST) {
 		chomp;
@@ -528,11 +532,11 @@ sub deleteDUPLICATEIPTABLESBADLIST {
 			delete $BADIPS{$_};
 		}
 	}
-	warn "BADIPS size after deleteing duplicates from \@IPTABLES: ".keys( %BADIPS )."\n" if ($verbose>2);
+	warn "\tBADIPS size after deleteing duplicates from \@IPTABLES: ".keys( %BADIPS )."\n" if ($verbose>2);
 	if ($verbose>3) { 
-		warn "\%BADIPS entries: \n";
+		warn "\t\t\%BADIPS entries: \n";
 		foreach my $key (sort keys %BADIPS) {
-			warn "$key: ".$BADIPS{$key}." \n";
+			warn "\t\t\t$key: ".$BADIPS{$key}." \n";
 		}
 	}
 }
